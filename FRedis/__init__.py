@@ -1,13 +1,26 @@
 import json
 import redis
-from F import DICT
 
-# redis-cli -h 192.168.1.229 -p 6379 -a <password>
-# host='192.168.1.229'
+import F
+from F import DICT
+from F.CLASS import Flass
+from F.TYPE.Dict import fict
+
+# redis-cli -h 192.168.1.xxx -p 6379 -a <password>
+# host='192.168.1.xxx'
 # port=6379
 # db=0
 # -> pubsub {'type': 'message', 'pattern': None, 'channel': b'channel-1', 'data': b'this is a dykw message!'}
-class Redis:
+BASE_KEY = lambda service, attribute: f"{service}:{attribute}"
+CONFIG_KEY = lambda name: BASE_KEY(name, "config")
+CONFIG_MODEL = { "host": "", "ip": "", "port": "", "db": "", "username": "", "password": "" }
+class Redis(Flass):
+    username = ""
+    password = ""
+    host = "localhost"
+    ip = "127.0.0.1"
+    port = 6379
+    db = 0
     client = None
     runPoller = False
     enablePubSub = False
@@ -17,17 +30,16 @@ class Redis:
     pubsub_callback = None
 
     def __init__(self, **kwargs):
-        if kwargs:
-            ip = DICT.get("ip", kwargs, default=False)
-            host = DICT.get("host", kwargs, default=False)
-            port = DICT.get("port", kwargs, default=False)
-            db = DICT.get("db", kwargs, default=False)
-            self.enablePubSub = DICT.get("enablePubSub", kwargs, default=False)
-            self.connect_to_redis(host=host if not ip else ip, port=port, db=db)
+        super().__init__(**kwargs)
+        self.connect_to_redis()
 
-    def connect_to_redis(self, host:str, port:int, db:int):
-        self.client = redis.Redis(host=host, port=port, db=db)
+    def connect_to_redis(self):
+        self.client = redis.Redis(host=self._host(), port=self.port, db=self.db)
+        # self.client = redis.Redis(host=self._host(), port=self.port, db=self.db, username=self.username, password=self.password)
         return self
+
+    def _host(self):
+        return F.ifElse(self.ip, self.host)
 
     def set(self, key, value):
         if type(value) not in [str]:
@@ -41,13 +53,16 @@ class Redis:
 
     def get(self, key, parseDict=False):
         if parseDict:
-            return self.get_dict(key)
+            return self.get_fict(key)
         return self.client.get(key)
 
-    def get_dict(self, key):
+    def get_config(self, key):
+        return self.get_fict(CONFIG_KEY(key))
+
+    def get_fict(self, key):
         result = self.client.get(key)
         result = self.parse_str_to_dict(result)
-        return result
+        return fict(result)
 
     @staticmethod
     def parse_str_to_dict(value):
@@ -91,3 +106,13 @@ class Redis:
             self.messages[channel] = message
             if self.pubsub_callback:
                 self.pubsub_callback(message)
+
+if __name__ == '__main__':
+    r = Redis(ip="192.168.1.229")
+    CONFIG_MODEL["ip"] = "192.168.1.xxx"
+    CONFIG_MODEL["host"] = "192.168.1.xxx"
+    CONFIG_MODEL["port"] = "6379"
+    CONFIG_MODEL["db"] = "0"
+    CONFIG_MODEL["username"] = ""
+    CONFIG_MODEL["password"] = ""
+    r.set(CONFIG_KEY("redis"), CONFIG_MODEL)

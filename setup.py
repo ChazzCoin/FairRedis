@@ -5,7 +5,7 @@ current = os.getcwd()
 
 setup(
     name='FairRedis',
-    version='1.0.1',
+    version='1.0.3',
     description='A complete Python Package for RedisDB.',
     url='https://github.com/chazzcoin/FairRedis',
     author='ChazzCoin',
